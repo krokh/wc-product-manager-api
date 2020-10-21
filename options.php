@@ -9,15 +9,38 @@ add_action('admin_menu', 'pma_add_settings_page');
 
 function pma_render_plugin_settings_page()
 {
-    ?>
-    <h2>Product Manager API Settings</h2>
-    <form action="options.php" method="post">
-        <?php
-        settings_fields('wc_product_manager_api_options');
-        do_settings_sections('wc_product_manager_api'); ?>
-        <input name="submit" class="button button-primary" type="submit" value="<?php esc_attr_e('Save'); ?>"/>
-    </form>
-    <?php
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $response = pma_import();
+        if ($response) {
+            show_message('
+                <div class="notice notice-success is-dismissible">
+                    <p>' .  $response . '</p>
+                </div>'
+            );
+        } else {
+            show_message('
+                <div class="notice notice-error is-dismissible">
+                    <p>Error while processing.</p>
+                </div>'
+            );
+        }
+    }
+    echo '<h2>' . __('Product Manager API Settings', 'wc-product-manager-api') . '</h2>';
+    echo '<form action="options.php" method="post">';
+    settings_fields('wc_product_manager_api_options');
+    do_settings_sections('wc_product_manager_api');
+    submit_button(__('Save'), 'primary', 'submit', false);
+    echo '</form>';
+    echo '<h2>' . __('Import / Update Products', 'wc-product-manager-api') . '</h2>';
+    echo '<form action="options-general.php?page=wc-product-manager-api" method="post">';
+    submit_button(__('Import'), 'primary', 'import', false);
+    echo '&nbsp;';
+    submit_button(__('Update'), 'secondary', 'update', false);
+    echo '<h2>' . __('Delete objects', 'wc-product-manager-api') . '</h2>';
+    submit_button(__('Delete Categories'), 'secondary', 'delete_categories', false);
+    echo '&nbsp;';
+    submit_button(__('Delete Attributes'), 'secondary', 'delete_attributes', false);
+    echo '</form>';
 }
 
 function pma_register_settings()
@@ -40,7 +63,7 @@ function wc_product_manager_api_options_validate($input)
 
 function wc_product_manager_api_section_text()
 {
-    echo '<p>Here you can set all the options for using the Product Manager API</p>';
+    echo '<p>' . __('Here you can set all the options for using the Product Manager API', 'wc-product-manager-api') . '</p>';
 }
 
 function wc_product_manager_api_setting_api_key()
@@ -48,3 +71,17 @@ function wc_product_manager_api_setting_api_key()
     $options = get_option('wc_product_manager_api_options');
     echo "<input id='wc_product_manager_api_setting_api_key' name='wc_product_manager_api_options[api_key]' type='text' value='" . esc_attr($options['api_key']) . "' />";
 }
+
+//function pma_handle_form_action()
+//{
+//    print_r($_POST);
+//    die();
+//}
+//add_action('admin_post_import', 'pma_handle_form_action');
+//add_action('admin_post_update', 'pma_handle_form_action');
+
+//function import_action()
+//{
+//    print_r($_POST);
+//    die();
+//}
