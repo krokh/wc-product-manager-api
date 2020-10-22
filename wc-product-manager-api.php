@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.0.4
+ * Version: 1.0.5
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.2
@@ -28,13 +28,13 @@ add_action('admin_init', 'init_product_manager_api');
 
 function pma_import()
 {
-    if ($_POST['import']) {
+    if (isset($_POST['import'])) {
         return pma_import_action();
-    } elseif ($_POST['update']) {
+    } elseif (isset($_POST['update'])) {
         return pma_update_action();
-    } elseif ($_POST['delete_categories']) {
+    } elseif (isset($_POST['delete_categories'])) {
         return pma_delete_category_action();
-    } elseif ($_POST['delete_attributes']) {
+    } elseif (isset($_POST['delete_attributes'])) {
         return pma_delete_attribute_action();
     }
 }
@@ -90,6 +90,9 @@ function pma_import_action()
             $product->set_sku($group[0]['group_id']);
             $product->set_category_ids($category);
             $product->set_image_id($imageId);
+            $product->set_reviews_allowed(false);
+            $product->set_status('publish');
+            $product->set_stock_status();
 //            $product->set_gallery_image_ids([$imageId]);
         } catch (WC_Data_Exception $exception) {
             return $exception->getMessage();
@@ -145,10 +148,8 @@ function pma_import_action()
                         )
                     ) => trim($item['product_package']),
                 ]);
-                $variation->set_status('private');
-                $variation->save();
-                $variation = wc_get_product($variation->get_id());
                 $variation->set_status('publish');
+                $variation->set_stock_status();
                 $variation->save();
             } catch (WC_Data_Exception $exception) {
                 return $exception->getMessage();

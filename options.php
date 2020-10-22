@@ -4,7 +4,6 @@ function pma_add_settings_page()
 {
     add_options_page('Product Manager API', 'Product Manager API', 'manage_options', 'wc-product-manager-api', 'pma_render_plugin_settings_page');
 }
-
 add_action('admin_menu', 'pma_add_settings_page');
 
 function pma_render_plugin_settings_page()
@@ -49,7 +48,6 @@ function pma_register_settings()
     add_settings_section('api_settings', 'API Settings', 'wc_product_manager_api_section_text', 'wc_product_manager_api');
     add_settings_field('wc_product_manager_api_setting_api_key', 'API Key', 'wc_product_manager_api_setting_api_key', 'wc_product_manager_api', 'api_settings');
 }
-
 add_action('admin_init', 'pma_register_settings');
 
 function wc_product_manager_api_options_validate($input)
@@ -69,19 +67,5 @@ function wc_product_manager_api_section_text()
 function wc_product_manager_api_setting_api_key()
 {
     $options = get_option('wc_product_manager_api_options');
-    echo "<input id='wc_product_manager_api_setting_api_key' name='wc_product_manager_api_options[api_key]' type='text' value='" . esc_attr($options['api_key']) . "' />";
+    echo "<input id='wc_product_manager_api_setting_api_key' name='wc_product_manager_api_options[api_key]' type='text' class='regular-text' value='" . esc_attr($options['api_key']) . "' />";
 }
-
-//function pma_handle_form_action()
-//{
-//    print_r($_POST);
-//    die();
-//}
-//add_action('admin_post_import', 'pma_handle_form_action');
-//add_action('admin_post_update', 'pma_handle_form_action');
-
-//function import_action()
-//{
-//    print_r($_POST);
-//    die();
-//}
