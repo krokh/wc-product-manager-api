@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.0.8
+ * Version: 1.0.11
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.2
@@ -60,15 +60,18 @@ function pma_import_action()
     }
     $imported = [];
     foreach ($products as $group) {
-        if (!in_array($group[0]['group_id'], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 133, 366])) {
-            continue;
+        if (isset($options['include_groups'])) {
+            $includeGroups = explode(',', $options['include_groups']);
+            if (!in_array($group[0]['group_id'], $includeGroups)) {
+                continue;
+            }
         }
-        $imageId = media_sideload_image(
-            $group[0]['image'],
-            null,
-            basename($group[0]['image'], '.jpg'),
-            'id'
-        );
+        if (isset($options['exclude_groups'])) {
+            $excludeGroups = explode(',', $options['exclude_groups']);
+            if (in_array($group[0]['group_id'], $excludeGroups)) {
+                continue;
+            }
+        }
         if (!term_exists($group[0]['category_name'], 'product_cat')) {
             $category = wp_insert_term(
                 $group[0]['category_name'], // the term
@@ -89,7 +92,7 @@ function pma_import_action()
             $product->set_short_description($group[0]['product_description']);
             $product->set_sku($group[0]['group_id']);
             $product->set_category_ids($category);
-            $product->set_image_id($imageId);
+//            $product->set_image_id($imageId);
             $product->set_reviews_allowed(false);
             $product->set_status('publish');
             $product->set_stock_status();
@@ -129,6 +132,17 @@ function pma_import_action()
         }
         $product->set_attributes($attributes);
         $productId = $product->save();
+
+//        $imageId = media_sideload_image(
+//            $group[0]['image'],
+//            $productId,
+//            basename($group[0]['image'], '.jpg'),
+//            'id'
+//        );
+        $imageId = getIdFromPictureUrl($group[0]['image']);
+
+        $product->set_image_id($imageId);
+        $product->save();
 
         foreach ($group as $item) {
             $variation = new WC_Product_Variation();
@@ -215,4 +229,32 @@ function pma_delete_attribute_action()
     ");
 
     return 'Affected: ' . $wpdb->rows_affected;
+}
+
+/**
+ * @param string $url
+ * @return int
+ */
+function getIdFromPictureUrl(string $url): int
+{
+    global $wpdb;
+    $fileName = basename($url, '.jpg');
+
+    $sql = $wpdb->prepare(
+        "SELECT post_id FROM $wpdb->postmeta 
+         WHERE meta_key = '_wp_attached_file' AND meta_value like '%s'",
+        '%' . $fileName . '%'
+    );
+    $postId = $wpdb->get_var($sql);
+
+    if (!$postId) {
+        $postId = media_sideload_image(
+            $url,
+            null,
+            $fileName,
+            'id'
+        );
+    }
+
+    return $postId;
 }
