@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.0.7
+ * Version: 1.0.8
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.2
@@ -191,9 +191,9 @@ function pma_delete_category_action()
     global $wpdb;
     $wpdb->query("
         DELETE a, c 
-        FROM wp_terms AS a
-        LEFT JOIN wp_term_taxonomy AS c ON a.term_id = c.term_id
-        LEFT JOIN wp_term_relationships AS b ON b.term_taxonomy_id = c.term_taxonomy_id
+        FROM {$wpdb->base_prefix}terms AS a
+        LEFT JOIN {$wpdb->base_prefix}term_taxonomy AS c ON a.term_id = c.term_id
+        LEFT JOIN {$wpdb->base_prefix}term_relationships AS b ON b.term_taxonomy_id = c.term_taxonomy_id
         WHERE c.taxonomy = 'product_cat'
         AND a.slug not like 'uncategorized'
     ");
@@ -204,13 +204,13 @@ function pma_delete_category_action()
 function pma_delete_attribute_action()
 {
     global $wpdb;
-    $wpdb->query("DELETE FROM wp_woocommerce_attribute_taxonomies");
-    $wpdb->query("DELETE FROM wp_options where option_name = '_transient_wc_attribute_taxonomies' limit 1");
+    $wpdb->query("DELETE FROM {$wpdb->base_prefix}woocommerce_attribute_taxonomies");
+    $wpdb->query("DELETE FROM {$wpdb->base_prefix}options where option_name = '_transient_wc_attribute_taxonomies' limit 1");
     $wpdb->query("
         DELETE a, c, b  
-        FROM wp_terms AS a
-        LEFT JOIN wp_term_taxonomy AS c ON a.term_id = c.term_id
-        LEFT JOIN wp_termmeta AS b ON b.term_id = a.term_id
+        FROM {$wpdb->base_prefix}terms AS a
+        LEFT JOIN {$wpdb->base_prefix}term_taxonomy AS c ON a.term_id = c.term_id
+        LEFT JOIN {$wpdb->base_prefix}termmeta AS b ON b.term_id = a.term_id
         WHERE c.taxonomy like 'pa_%'
     ");
 
