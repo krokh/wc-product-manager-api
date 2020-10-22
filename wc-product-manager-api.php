@@ -3,11 +3,13 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.0.11
+ * Version: 1.0.12
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.2
  * Requires PHP: 7.2
+ * WC requires at least: 4.6.0
+ * WC tested up to: 4.6.1
  * License: MIT
  */
 
@@ -18,6 +20,20 @@ require_once __DIR__ . '/options.php';
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
+
+function pma_settings_link($links)
+{
+    $url = esc_url(add_query_arg(
+        'page',
+        'wc-product-manager-api',
+        get_admin_url() . 'options-general.php'
+    ));
+    $link[] = "<a href='$url'>" . __('Settings') . '</a>';
+
+
+    return array_merge($link, $links);
+}
+add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'pma_settings_link');
 
 function init_product_manager_api()
 {
