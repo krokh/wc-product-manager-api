@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.0.5
+ * Version: 1.0.7
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.2
@@ -60,7 +60,7 @@ function pma_import_action()
     }
     $imported = [];
     foreach ($products as $group) {
-        if (!in_array($group[0]['group_id'], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 133])) {
+        if (!in_array($group[0]['group_id'], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 133, 366])) {
             continue;
         }
         $imageId = media_sideload_image(
@@ -101,7 +101,7 @@ function pma_import_action()
         $dosages = [];
         $packages = [];
         foreach ($group as $item) {
-            $dosages[strtolower(str_replace(['(', ')', ' '], '', $item['product_dosage_type']))][]
+            $dosages[strtolower(str_replace(['(', ')', '%', ' '], '', $item['product_dosage_type']))][]
                 = trim($item['product_dosage']);
             $packages[strtolower(str_replace(['(', ')', ' '], '', $item['product_package_type']))][]
                 = trim($item['product_package']);
@@ -139,7 +139,7 @@ function pma_import_action()
                 $variation->set_attributes([
                     strtolower(
                         str_replace(
-                            ['(', ')', ' '], '', $item['product_dosage_type']
+                            ['(', ')', '%', ' '], '', $item['product_dosage_type']
                         )
                     ) => trim($item['product_dosage']),
                     strtolower(
