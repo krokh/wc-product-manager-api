@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.0.12
+ * Version: 1.0.13
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.2
@@ -16,6 +16,7 @@
 defined('ABSPATH') || exit;
 
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/include.php';
 require_once __DIR__ . '/options.php';
 
 use GuzzleHttp\Client;
@@ -65,7 +66,7 @@ function pma_import_action()
     ];
     $parameters = http_build_query($token);
     try {
-        $response = $client->get('https://restrict.ax.megadevs.xyz/api/rss/en?' . $parameters);
+        $response = $client->get(PMA_API_URL . '?' . $parameters);
     } catch (GuzzleException $exception) {
         echo $exception->getMessage();
     }
@@ -108,7 +109,6 @@ function pma_import_action()
             $product->set_short_description($group[0]['product_description']);
             $product->set_sku($group[0]['group_id']);
             $product->set_category_ids($category);
-//            $product->set_image_id($imageId);
             $product->set_reviews_allowed(false);
             $product->set_status('publish');
             $product->set_stock_status();
@@ -120,10 +120,8 @@ function pma_import_action()
         $dosages = [];
         $packages = [];
         foreach ($group as $item) {
-            $dosages[strtolower(str_replace(['(', ')', '%', ' '], '', $item['product_dosage_type']))][]
-                = trim($item['product_dosage']);
-            $packages[strtolower(str_replace(['(', ')', ' '], '', $item['product_package_type']))][]
-                = trim($item['product_package']);
+            $dosages[pma_sanitizer($item['product_dosage_type'])][] = trim($item['product_dosage']);
+            $packages[pma_sanitizer($item['product_package_type'])][] = trim($item['product_package']);
         }
         $attributes = [];
         foreach ($dosages as $type => $dosage) {
@@ -148,15 +146,7 @@ function pma_import_action()
         }
         $product->set_attributes($attributes);
         $productId = $product->save();
-
-//        $imageId = media_sideload_image(
-//            $group[0]['image'],
-//            $productId,
-//            basename($group[0]['image'], '.jpg'),
-//            'id'
-//        );
         $imageId = getIdFromPictureUrl($group[0]['image']);
-
         $product->set_image_id($imageId);
         $product->save();
 
@@ -167,16 +157,8 @@ function pma_import_action()
                 $variation->set_sku($item['product_id']);
                 $variation->set_parent_id($productId);
                 $variation->set_attributes([
-                    strtolower(
-                        str_replace(
-                            ['(', ')', '%', ' '], '', $item['product_dosage_type']
-                        )
-                    ) => trim($item['product_dosage']),
-                    strtolower(
-                        str_replace(
-                            ['(', ')', ' '], '', $item['product_package_type']
-                        )
-                    ) => trim($item['product_package']),
+                    pma_sanitizer($item['product_dosage_type']) => trim($item['product_dosage']),
+                    pma_sanitizer($item['product_package_type']) => trim($item['product_package']),
                 ]);
                 $variation->set_status('publish');
                 $variation->set_stock_status();
@@ -203,7 +185,7 @@ function pma_update_action()
     ];
     $parameters = http_build_query($token);
     try {
-        $response = $client->get('https://restrict.ax.megadevs.xyz/api/rss/en?' . $parameters);
+        $response = $client->get(PMA_API_URL . '?' . $parameters);
     } catch (GuzzleException $exception) {
         echo $exception->getMessage();
     }
@@ -259,7 +241,7 @@ function getIdFromPictureUrl(string $url): int
     $sql = $wpdb->prepare(
         "SELECT post_id FROM $wpdb->postmeta 
          WHERE meta_key = '_wp_attached_file' AND meta_value like '%s'",
-        '%' . $fileName . '%'
+        '%/' . $fileName
     );
     $postId = $wpdb->get_var($sql);
 
@@ -273,4 +255,13 @@ function getIdFromPictureUrl(string $url): int
     }
 
     return $postId;
+}
+
+/**
+ * @param string $data
+ * @return string
+ */
+function pma_sanitizer(string $data): string
+{
+    return strtolower(str_replace(['(', ')', '%', ' '], '', $data));
 }
