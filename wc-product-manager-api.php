@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.2
@@ -130,12 +130,6 @@ function pma_import_action()
                     $productVariation->save();
                 }
             }
-//            echo '<pre>';
-//            print_r(['$skus'] + $skus);
-//            print_r(['$skusOnShop'] + $skusOnShop);
-//            print_r(['$skusNotInStock'] + $skusNotInStock);
-//            echo '</pre>';
-
             $updated[] = $productId;
         } else {
             // add
@@ -183,8 +177,7 @@ function pma_import_action()
             }
             $imported[] = $productId;
         }
-        $shopProducts = getProducts();
-        $productsNotInStock = array_diff($shopProducts, $imported, $updated);
+        $productsNotInStock = array_diff(getProductIds(), $imported, $updated);
         foreach ($productsNotInStock as $productNotInStock) {
             $product = wc_get_product($productNotInStock);
             if ($product) {
@@ -294,7 +287,7 @@ function getProductBySku(string $sku): ?WC_Product_Variable
 /**
  * @return array|null
  */
-function getProducts(): ?array
+function getProductIds(): ?array
 {
     global $wpdb;
     $rawProducts = $wpdb->get_results(
