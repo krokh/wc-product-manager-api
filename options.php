@@ -2,7 +2,7 @@
 
 function pma_add_settings_page()
 {
-    add_options_page('Product Manager API', 'Product Manager API', 'manage_options', 'wc-product-manager-api', 'pma_render_plugin_settings_page');
+    add_options_page('Products Manager API', 'Products Manager API', 'manage_options', 'wc-product-manager-api', 'pma_render_plugin_settings_page');
 }
 
 add_action('admin_menu', 'pma_add_settings_page');
@@ -25,7 +25,7 @@ function pma_render_plugin_settings_page()
             );
         }
     }
-    echo '<h2>' . __('Product Manager API Settings', 'wc-product-manager-api') . '</h2>';
+    echo '<h2>' . __('Products Manager API Settings', 'wc-product-manager-api') . '</h2>';
     echo '<form action="options.php" method="post">';
     settings_fields('wc_product_manager_api_options');
     do_settings_sections('wc_product_manager_api');
@@ -33,9 +33,7 @@ function pma_render_plugin_settings_page()
     echo '</form>';
     echo '<h2>' . __('Import / Update Products', 'wc-product-manager-api') . '</h2>';
     echo '<form action="options-general.php?page=wc-product-manager-api" method="post">';
-    submit_button(__('Import'), 'primary', 'import', false);
-    echo '&nbsp;';
-    submit_button(__('Update'), 'secondary', 'update', false);
+    submit_button(__('Import'), 'secondary', 'import', false);
     echo '<h2>' . __('Delete objects', 'wc-product-manager-api') . '</h2>';
     submit_button(__('Delete Categories'), 'secondary', 'delete_categories', false);
     echo '&nbsp;';
@@ -73,7 +71,7 @@ function wc_product_manager_api_options_validate($input)
 
 function wc_product_manager_api_section_text()
 {
-    echo '<p>' . __('Here you can set all the options for using the Product Manager API', 'wc-product-manager-api') . '</p>';
+    echo '<p>' . __('Here you can set all the options for using the Products Manager API', 'wc-product-manager-api') . '</p>';
 }
 
 function wc_product_manager_api_setting_api_key()

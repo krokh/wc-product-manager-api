@@ -3,13 +3,15 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.0.14
+ * Version: 1.1.0
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.2
  * Requires PHP: 7.2
  * WC requires at least: 4.6.0
  * WC tested up to: 4.6.1
+ * Text Domain: wc-product-manager-api
+ * Domain Path: /languages/
  * License: MIT
  */
 
@@ -34,11 +36,13 @@ function pma_settings_link($links)
 
     return array_merge($link, $links);
 }
+
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'pma_settings_link');
 
 function init_product_manager_api()
 {
-    //
+//    global $wpdb;
+//    echo '<pre>' . print_r($wpdb->queries, true) . '</pre>>';
 }
 
 add_action('admin_init', 'init_product_manager_api');
@@ -47,8 +51,6 @@ function pma_import()
 {
     if (isset($_POST['import'])) {
         return pma_import_action();
-    } elseif (isset($_POST['update'])) {
-        return pma_update_action();
     } elseif (isset($_POST['delete_categories'])) {
         return pma_delete_category_action();
     } elseif (isset($_POST['delete_attributes'])) {
@@ -76,6 +78,7 @@ function pma_import_action()
         $products[$product['group_id']][] = $product;
     }
     $imported = [];
+    $updated = [];
     foreach ($products as $group) {
         if (isset($options['include_groups'])) {
             $includeGroups = explode(',', $options['include_groups']);
@@ -89,113 +92,116 @@ function pma_import_action()
                 continue;
             }
         }
-        if (!term_exists($group[0]['category_name'], 'product_cat')) {
-            $category = wp_insert_term(
-                $group[0]['category_name'], // the term
-                'product_cat', // the taxonomy
-                [
-                    'description' => $group[0]['category_seo_description'],
-                    'slug' => '',
-                ]
-            );
-        } else {
-            $category = (get_term_by('name', $group[0]['category_name'], 'product_cat'))->to_array();
-        }
 
-        $product = new WC_Product_Variable();
-        try {
-            $product->set_name($group[0]['group_name']);
-            $product->set_description($group[0]['product_seo_description']);
-            $product->set_short_description($group[0]['product_description']);
-            $product->set_sku($group[0]['group_id']);
-            $product->set_category_ids($category);
-            $product->set_reviews_allowed(false);
-            $product->set_status('publish');
+        $product = getProductBySku($group[0]['group_id']);
+        if ($product) {
+            $skus = [];
+            // update
+            foreach ($group as $item) {
+                $skus[] = (string)$item['product_id'];
+                $productVariation = getProductVariationBySku($item['product_id']);
+                if ($productVariation) {
+                    // update
+                    updateProductVariation($productVariation, $item);
+                } else {
+                    // add
+                    try {
+                        addProductVariation($product, $item);
+                    } catch (WC_Data_Exception $exception) {
+                        return $exception->getMessage();
+                    }
+                }
+            }
             $product->set_stock_status();
-//            $product->set_gallery_image_ids([$imageId]);
-        } catch (WC_Data_Exception $exception) {
-            return $exception->getMessage();
-        }
+            $productId = $product->save();
 
-        $dosages = [];
-        $packages = [];
-        foreach ($group as $item) {
-            $dosages[pma_sanitizer($item['product_dosage_type'])][] = trim($item['product_dosage']);
-            $packages[pma_sanitizer($item['product_package_type'])][] = trim($item['product_package']);
-        }
-        $attributes = [];
-        foreach ($dosages as $type => $dosage) {
-            $dosage = array_unique($dosage);
-            $attribute = new WC_Product_Attribute();
-            $attribute->set_id(0);
-            $attribute->set_name($type);
-            $attribute->set_options(array_values($dosage));
-            $attribute->set_visible(1);
-            $attribute->set_variation(1);
-            $attributes[] = $attribute;
-        }
-        foreach ($packages as $type => $package) {
-            $package = array_unique($package);
-            $attribute = new WC_Product_Attribute();
-            $attribute->set_id(0);
-            $attribute->set_name($type);
-            $attribute->set_options(array_values($package));
-            $attribute->set_visible(1);
-            $attribute->set_variation(1);
-            $attributes[] = $attribute;
-        }
-        $product->set_attributes($attributes);
-        $productId = $product->save();
-        $imageId = getIdFromPictureUrl($group[0]['image']);
-        $product->set_image_id($imageId);
-        $product->save();
+            // delete
+            $productVariations = $product->get_children();
+            $skusOnShop = [];
+            foreach ($productVariations as $productVariationId) {
+                $productVariation = wc_get_product($productVariationId);
+                $skusOnShop[] = (string)$productVariation->get_sku();
+            }
+            $skusNotInStock = array_diff($skusOnShop, $skus);
+            foreach ($skusNotInStock as $skuNotInStock) {
+                $productVariation = getProductVariationBySku($skuNotInStock);
+                if ($productVariation) {
+                    $productVariation->set_stock_status('outofstock');
+                    $productVariation->save();
+                }
+            }
+//            echo '<pre>';
+//            print_r(['$skus'] + $skus);
+//            print_r(['$skusOnShop'] + $skusOnShop);
+//            print_r(['$skusNotInStock'] + $skusNotInStock);
+//            echo '</pre>';
 
-        foreach ($group as $item) {
-            $variation = new WC_Product_Variation();
+            $updated[] = $productId;
+        } else {
+            // add
+            $product = new WC_Product_Variable();
             try {
-                $variation->set_regular_price($item['product_price']);
-                $variation->set_sku($item['product_id']);
-                $variation->set_parent_id($productId);
-                $variation->set_attributes([
-                    pma_sanitizer($item['product_dosage_type']) => trim($item['product_dosage']),
-                    pma_sanitizer($item['product_package_type']) => trim($item['product_package']),
-                ]);
-                $variation->set_status('publish');
-                $variation->set_stock_status();
-                $variation->save();
+                $product->set_name($group[0]['group_name']);
+                $product->set_description($group[0]['product_seo_description']);
+                $product->set_short_description($group[0]['product_description']);
+                $product->set_sku($group[0]['group_id']);
+                $product->set_category_ids(
+                    getCategoryByName($group[0]['category_name'], $group[0]['category_seo_description'])
+                );
+                $product->set_reviews_allowed(false);
+                $product->set_status('publish');
+                $product->set_stock_status();
+//            $product->set_gallery_image_ids([$imageId]);
             } catch (WC_Data_Exception $exception) {
                 return $exception->getMessage();
             }
+
+            $dosages = [];
+            $packages = [];
+            foreach ($group as $item) {
+                $dosages[pma_sanitizer($item['product_dosage_type'])][] = trim($item['product_dosage']);
+                $packages[pma_sanitizer($item['product_package_type'])][] = trim($item['product_package']);
+            }
+            $attributes = array_merge(
+                addProductAttributes($dosages),
+                addProductAttributes($packages)
+            );
+            $product->set_attributes($attributes);
+            $productId = $product->save();
+            $product->set_image_id(
+                getIdFromPictureUrl($group[0]['image'])
+            );
+            $product->save();
+
+            foreach ($group as $item) {
+                // add
+                try {
+                    addProductVariation($product, $item);
+                } catch (WC_Data_Exception $exception) {
+                    return $exception->getMessage();
+                }
+            }
+            $imported[] = $productId;
         }
-        $imported[] = $productId;
+        $shopProducts = getProducts();
+        $productsNotInStock = array_diff($shopProducts, $imported, $updated);
+        foreach ($productsNotInStock as $productNotInStock) {
+            $product = wc_get_product($productNotInStock);
+            if ($product) {
+                $product->set_stock_status('outofstock');
+                $product->save();
+                $productVariations = $product->get_children();
+                foreach ($productVariations as $productVariationId) {
+                    $productVariation = wc_get_product($productVariationId);
+                    $productVariation->set_stock_status('outofstock');
+                    $productVariation->save();
+                }
+            }
+        }
     }
 
-    return __('All products import successful', 'wc-product-manager-api') . ', ' . count($imported);
-}
-
-function pma_update_action()
-{
-    return 'Coming soon...';
-
-    $options = get_option('wc_product_manager_api_options');
-
-    $client = new Client();
-    $token = [
-        'token' => $options['api_key'],
-    ];
-    $parameters = http_build_query($token);
-    try {
-        $response = $client->get(PMA_API_URL . '?' . $parameters);
-    } catch (GuzzleException $exception) {
-        echo $exception->getMessage();
-    }
-    $rawProducts = json_decode($response->getBody(), true);
-    $products = [];
-    foreach ($rawProducts as $product) {
-        $products[$product['group_id']][] = $product;
-    }
-
-    return '<pre>' . print_r(array_slice($products[2], 0, 100), true) . '</pre>';
+    return __('All products import successful', 'wc-product-manager-api')
+        . ', ' . count($imported) . ' ' . __('imported') . ', ' . count($updated) . ' ' . __('updated');
 }
 
 function pma_delete_category_action()
@@ -264,4 +270,157 @@ function getIdFromPictureUrl(string $url): int
 function pma_sanitizer(string $data): string
 {
     return strtolower(str_replace(['(', ')', '%', ' '], '', $data));
+}
+
+/**
+ * @param string $sku
+ * @return WC_Product_Variable|null
+ */
+function getProductBySku(string $sku): ?WC_Product_Variable
+{
+    global $wpdb;
+    $product_id = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT post_id FROM $wpdb->postmeta WHERE meta_key='_sku' AND meta_value='%s' LIMIT 1",
+            $sku
+        )
+    );
+    if ($product_id) {
+        return new WC_Product_Variable($product_id);
+    }
+    return null;
+}
+
+/**
+ * @return array|null
+ */
+function getProducts(): ?array
+{
+    global $wpdb;
+    $rawProducts = $wpdb->get_results(
+        $wpdb->prepare(
+            "SELECT id FROM $wpdb->posts WHERE post_type='%s'",
+            'product'
+        ), 'ARRAY_A'
+    );
+
+    return
+        array_map(
+            function ($item) {
+                return $item['id'];
+            },
+            $rawProducts
+        );
+}
+
+/**
+ * @param string $sku
+ * @return WC_Product_Variation|null
+ */
+function getProductVariationBySku(string $sku): ?WC_Product_Variation
+{
+    global $wpdb;
+    $product_id = $wpdb->get_var(
+        $wpdb->prepare(
+            "SELECT post_id FROM $wpdb->postmeta WHERE meta_key='_sku' AND meta_value='%s' LIMIT 1",
+            $sku
+        )
+    );
+    if ($product_id) {
+        return new WC_Product_Variation($product_id);
+    }
+    return null;
+}
+
+/**
+ * @param string $name
+ * @param string $description
+ * @return array
+ */
+function getCategoryByName(string $name, string $description): array
+{
+    if (!term_exists($name, 'product_cat')) {
+        return wp_insert_term(
+            $name, // the term
+            'product_cat', // the taxonomy
+            [
+                'description' => $description,
+                'slug' => '',
+            ]
+        );
+    } else {
+        return (get_term_by('name', $name, 'product_cat'))->to_array();
+    }
+}
+
+/**
+ * @param WC_Product_Variable $product
+ * @param array $data
+ * @return int
+ * @throws WC_Data_Exception
+ */
+function addProductVariation(WC_Product_Variable $product, array $data): int
+{
+    $variation = new WC_Product_Variation();
+    try {
+        $variation->set_regular_price($data['product_price']);
+        $variation->set_sku($data['product_id']);
+        $variation->set_parent_id($product->get_id());
+        $variation->set_attributes([
+            pma_sanitizer($data['product_dosage_type']) => trim($data['product_dosage']),
+            pma_sanitizer($data['product_package_type']) => trim($data['product_package']),
+        ]);
+        $variation->set_status('publish');
+        $variation->set_stock_status();
+    } catch (WC_Data_Exception $exception) {
+        throw $exception;
+    }
+    return $variation->save();
+}
+
+/**
+ * @param WC_Product_Variation $productVariation
+ * @param array $data
+ * @return void
+ */
+function updateProductVariation(WC_Product_Variation $productVariation, array $data): void
+{
+    $productVariation->set_stock_status();
+    if ($productVariation->get_regular_price() !== $data['product_price']) {
+        $productVariation->set_regular_price($data['product_price']);
+    }
+    $attributes = [];
+    $productDosage = $productVariation->get_attribute('product_dosage_type');
+    if ($productDosage !== $data['product_dosage']) {
+        $attributes[pma_sanitizer($data['product_dosage_type'])] = trim($data['product_dosage']);
+    }
+    $productPackage = $productVariation->get_attribute('product_package_type');
+    if ($productPackage !== $data['product_package']) {
+        $attributes[pma_sanitizer($data['product_package_type'])] = trim($data['product_package']);
+    }
+    if (count($attributes) > 0) {
+        $productVariation->set_attributes($attributes);
+    }
+    $productVariation->save();
+}
+
+
+/**
+ * @param array $data
+ * @return array
+ */
+function addProductAttributes(array $data): array
+{
+    $attributes = [];
+    foreach ($data as $type => $dosage) {
+        $dosage = array_unique($dosage);
+        $attribute = new WC_Product_Attribute();
+        $attribute->set_id(0);
+        $attribute->set_name($type);
+        $attribute->set_options(array_values($dosage));
+        $attribute->set_visible(true);
+        $attribute->set_variation(true);
+        $attributes[] = $attribute;
+    }
+    return $attributes;
 }
