@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.1.2
+ * Version: 1.1.3
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.2
@@ -84,13 +84,13 @@ function pma_import_action()
     $imported = [];
     $updated = [];
     foreach ($products as $group) {
-        if (isset($options['include_groups'])) {
+        if (isset($options['include_groups']) && $options['include_groups'] !== '') {
             $includeGroups = explode(',', $options['include_groups']);
             if (!in_array($group[0]['group_id'], $includeGroups)) {
                 continue;
             }
         }
-        if (isset($options['exclude_groups'])) {
+        if (isset($options['exclude_groups']) && $options['exclude_groups'] !== '') {
             $excludeGroups = explode(',', $options['exclude_groups']);
             if (in_array($group[0]['group_id'], $excludeGroups)) {
                 continue;
@@ -181,18 +181,19 @@ function pma_import_action()
             }
             $imported[] = $productId;
         }
-        $productsNotInStock = array_diff(getProductIds(), $imported, $updated);
-        foreach ($productsNotInStock as $productNotInStock) {
-            $product = wc_get_product($productNotInStock);
-            if ($product) {
-                $product->set_stock_status('outofstock');
-                $product->save();
-                $productVariations = $product->get_children();
-                foreach ($productVariations as $productVariationId) {
-                    $productVariation = wc_get_product($productVariationId);
-                    $productVariation->set_stock_status('outofstock');
-                    $productVariation->save();
-                }
+    }
+
+    $productsNotInStock = array_diff(getProductIds(), $imported, $updated);
+    foreach ($productsNotInStock as $productNotInStock) {
+        $product = wc_get_product($productNotInStock);
+        if ($product) {
+            $product->set_stock_status('outofstock');
+            $product->save();
+            $productVariations = $product->get_children();
+            foreach ($productVariations as $productVariationId) {
+                $productVariation = wc_get_product($productVariationId);
+                $productVariation->set_stock_status('outofstock');
+                $productVariation->save();
             }
         }
     }
