@@ -81,7 +81,7 @@ class PmaUpdater
 
             $obj = new stdClass();
             $obj->slug = $this->slug;
-            $obj->new_version = $this->githubAPIResult->tag_name;
+            $obj->version = $this->githubAPIResult->tag_name;
             $obj->url = $this->pluginData["PluginURI"];
             $obj->package = $package;
             $transient->response[$this->slug] = $obj;
