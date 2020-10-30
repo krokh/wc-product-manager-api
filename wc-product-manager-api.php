@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.1.7
+ * Version: 1.1.8
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.0
@@ -143,8 +143,8 @@ function pma_import_action()
             $product = new WC_Product_Variable();
             try {
                 $product->set_name($group[0]['group_name']);
-                $product->set_description($group[0]['product_seo_description']);
-                $product->set_short_description($group[0]['product_description']);
+                $product->set_description($group[0]['product_seo_description'] ?? '');
+                $product->set_short_description($group[0]['product_description'] ?? '');
                 $product->set_sku($group[0]['group_id']);
                 $product->set_category_ids(
                     getCategoryByName($group[0]['category_name'], $group[0]['category_seo_description'])
@@ -169,9 +169,10 @@ function pma_import_action()
             );
             $product->set_attributes($attributes);
             $productId = $product->save();
-            $product->set_image_id(
-                getIdFromPictureUrl($group[0]['image'])
-            );
+            $imageId = getIdFromPictureUrl($group[0]['image']);
+            if ($imageId) {
+                $product->set_image_id($imageId);
+            }
             $product->save();
 
             foreach ($group as $item) {
@@ -250,10 +251,6 @@ function getIdFromPictureUrl(string $url): ?int
     global $wpdb;
     $fileName = basename($url, '.jpg');
 
-    if (stripos($fileName, 'megadevs') !== false) {
-        return null;
-    }
-
     $sql = $wpdb->prepare(
         "SELECT post_id FROM $wpdb->postmeta 
          WHERE meta_key = '_wp_attached_file' AND meta_value like '%s'",
@@ -262,6 +259,10 @@ function getIdFromPictureUrl(string $url): ?int
     $postId = $wpdb->get_var($sql);
 
     if (!$postId) {
+        $size = getimagesize($url);
+        if (!$size) {
+            return null;
+        }
         $postId = media_sideload_image(
             $url,
             null,
@@ -270,7 +271,7 @@ function getIdFromPictureUrl(string $url): ?int
         );
     }
 
-    return $postId;
+    return (!($postId instanceof WP_Error)) ? $postId : null;
 }
 
 /**
