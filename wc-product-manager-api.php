@@ -3,11 +3,12 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.1.6
+ * Version: 1.1.7
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
- * Requires at least: 5.2
+ * Requires at least: 5.0
  * Requires PHP: 7.2
+ * Tested: 5.2
  * WC requires at least: 4.6.0
  * WC tested up to: 4.6.1
  * Text Domain: wc-product-manager-api
@@ -242,12 +243,16 @@ function pma_delete_attribute_action()
 
 /**
  * @param string $url
- * @return int
+ * @return int|null
  */
-function getIdFromPictureUrl(string $url): int
+function getIdFromPictureUrl(string $url): ?int
 {
     global $wpdb;
     $fileName = basename($url, '.jpg');
+
+    if (stripos($fileName, 'megadevs') !== false) {
+        return null;
+    }
 
     $sql = $wpdb->prepare(
         "SELECT post_id FROM $wpdb->postmeta 
