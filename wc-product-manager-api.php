@@ -20,6 +20,10 @@ defined('ABSPATH') || exit;
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/include.php';
 require_once __DIR__ . '/options.php';
+require_once __DIR__ . '/update.php';
+if (is_admin()) {
+    new PmaUpdater(__FILE__, 'uleytech', "wc-product-manager-api");
+}
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
