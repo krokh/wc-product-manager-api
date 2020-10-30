@@ -3,7 +3,7 @@
  * Plugin Name: WooCommerce Product Manager API
  * Plugin URI: https://github.com/uleytech/wc-product-manager-api
  * Description: Provides functionality for WooCommerce.
- * Version: 1.1.3
+ * Version: 1.1.4
  * Author: Oleksandr Krokhin
  * Author URI: https://www.krohin.com
  * Requires at least: 5.2
@@ -43,13 +43,12 @@ function pma_settings_link($links)
 
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'pma_settings_link');
 
-function init_product_manager_api()
-{
+//function init_product_manager_api()
+//{
 //    global $wpdb;
 //    echo '<pre>' . print_r($wpdb->queries, true) . '</pre>>';
-}
-
-add_action('admin_init', 'init_product_manager_api');
+//}
+//add_action('admin_init', 'init_product_manager_api');
 
 function pma_import()
 {
@@ -83,8 +82,11 @@ function pma_import_action()
     }
     $imported = [];
     $updated = [];
+    $deleted = [];
+    $isIncludeGroups = false;
     foreach ($products as $group) {
         if (isset($options['include_groups']) && $options['include_groups'] !== '') {
+            $isIncludeGroups = true;
             $includeGroups = explode(',', $options['include_groups']);
             if (!in_array($group[0]['group_id'], $includeGroups)) {
                 continue;
@@ -183,23 +185,28 @@ function pma_import_action()
         }
     }
 
-    $productsNotInStock = array_diff(getProductIds(), $imported, $updated);
-    foreach ($productsNotInStock as $productNotInStock) {
-        $product = wc_get_product($productNotInStock);
-        if ($product) {
-            $product->set_stock_status('outofstock');
-            $product->save();
-            $productVariations = $product->get_children();
-            foreach ($productVariations as $productVariationId) {
-                $productVariation = wc_get_product($productVariationId);
-                $productVariation->set_stock_status('outofstock');
-                $productVariation->save();
+    if (!$isIncludeGroups) {
+        $productsNotInStock = array_diff(getProductIds(), $imported, $updated);
+        foreach ($productsNotInStock as $productNotInStock) {
+            $product = wc_get_product($productNotInStock);
+            if ($product) {
+                $product->set_stock_status('outofstock');
+                $product->save();
+                $productVariations = $product->get_children();
+                foreach ($productVariations as $productVariationId) {
+                    $productVariation = wc_get_product($productVariationId);
+                    $productVariation->set_stock_status('outofstock');
+                    $productVariation->save();
+                }
+                $deleted[] = $product->get_id();
             }
         }
     }
 
-    return __('All products import successful', 'wc-product-manager-api')
-        . ', ' . count($imported) . ' ' . __('imported') . ', ' . count($updated) . ' ' . __('updated');
+    return __('All products import successful', 'wc-product-manager-api') . ', '
+        . count($imported) . ' ' . __('imported') . ', '
+        . count($updated) . ' ' . __('updated') . ', '
+        . count($deleted) . ' ' . __('out of stock') ;
 }
 
 function pma_delete_category_action()

@@ -109,10 +109,10 @@ class PmaUpdater
         $response->author = $this->pluginData["AuthorName"];
         $response->homepage = $this->pluginData["PluginURI"];
 
-// This is our release download zip file
+        // This is our release download zip file
         $downloadLink = $this->githubAPIResult->zipball_url;
 
-// Include the access token for private GitHub repos
+        // Include the access token for private GitHub repos
         if (!empty($this->accessToken)) {
             $downloadLink = add_query_arg(
                 array("access_token" => $this->accessToken),
